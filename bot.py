@@ -1,4 +1,3 @@
-import os
 import re
 import asyncio
 from telegram import Update
@@ -10,7 +9,7 @@ from telegram.ext import (
     filters,
 )
 
-TOKEN = os.environ.get("8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw")  # ← токен берётся из переменных окружения Koyeb
+TOKEN = "8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw"
 
 # --- Реакция на /start в личных сообщениях ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,7 +43,7 @@ async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("пизда")
 
     # "yes" / "йес"
-    elif re.search(r"(yes+|йес+|ес+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text):
+    elif re.search(r"(ye+s+|йе+с+|е+с+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text):
         await update.message.reply_text("хуес! Пизда!")
 
 
@@ -52,21 +51,18 @@ async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # Команда /start
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(
-        MessageHandler(filters.TEXT & filters.ChatType.PRIVATE & ~filters.COMMAND, handle_private)
-    )
-    app.add_handler(
-        MessageHandler(filters.TEXT & filters.ChatType.GROUPS & ~filters.COMMAND, handle_group)
-    )
 
-    print("✅ Бот запущен и работает...")
+    # Сообщения в личке
+    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
+
+    # Сообщения в группах
+    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
+
+    print("Бот запущен")
     await app.run_polling()
 
-
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())
-
-
-if __name__ == "__main__":
-    main()
