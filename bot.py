@@ -50,3 +50,29 @@ if __name__ == "__main__":
 
     print("Бот запущен...")
     app.run_polling()
+
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+# Фейковый сервер для health check
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+def run_health_server():
+    server = HTTPServer(("0.0.0.0", 8000), HealthCheckHandler)
+    server.serve_forever()
+
+if __name__ == "__main__":
+    threading.Thread(target=run_health_server, daemon=True).start()
+
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
+    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
+
+    print("Бот запущен и health check сервер активен")
+    app.run_polling()
