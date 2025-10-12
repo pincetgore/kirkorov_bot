@@ -1,3 +1,5 @@
+import os
+import re
 import asyncio
 from telegram import Update
 from telegram.ext import (
@@ -7,14 +9,15 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-import re
 
-TOKEN = "8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw"
+TOKEN = os.environ.get("8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw")  # ← токен берётся из переменных окружения Koyeb
 
 # --- Реакция на /start в личных сообщениях ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type == "private":
-        await update.message.reply_text('Пожалуйста, введите слово "да", чтобы начать')
+        await update.message.reply_text(
+            'Здравствуйте! Пожалуйста, введите слово "да", чтобы начать.'
+        )
         context.user_data["waiting_for_da"] = True
 
 
@@ -22,52 +25,47 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower().strip()
 
-    # Проверяем, ждём ли мы "да"
-    if context.user_data.get("waiting_for_da"):
-        if re.fullmatch(r"д+а+", text, re.IGNORECASE):
-            await update.message.reply_text("пизда")
-            context.user_data["waiting_for_da"] = False
-        else:
-            await update.message.reply_text("Попробуйте ещё раз")
+    # Проверяем, ждём ли мы "да" от пользователя
+    if context.user_data.get("waiting_for_da") and re.fullmatch(r"да+", text):
+        await update.message.reply_text("пизда")
+        context.user_data["waiting_for_da"] = False
+    elif context.user_data.get("waiting_for_da"):
+        await update.message.reply_text("Попробуйте еще раз")
+    elif re.fullmatch(r"да+", text):
+        await update.message.reply_text("пизда")
 
 
 # --- Реакция на групповые сообщения ---
 async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower().strip()
 
-    # если сообщение заканчивается на "да" или "da"
-    if re.search(r"\b(д+а+|d+a+)+\s*(?:[!?,.…\s\U0001F300-\U0001FAFF]*)$", text, re.IGNORECASE):
+    # "да", "дааа", "da", "daaa"
+    if re.search(r"(да+|da+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text):
         await update.message.reply_text("пизда")
 
-    # если сообщение содержит "yes" или "йес"
-    elif re.search(r"\b(y+e+s+|е+с+|й+е+с+)+\s*(?:[!?,.…\s\U0001F300-\U0001FAFF]*)$", text, re.IGNORECASE):
-        await update.message.reply_text("хуес")
+    # "yes" / "йес"
+    elif re.search(r"(yes+|йес+|ес+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text):
+        await update.message.reply_text("хуес! Пизда!")
 
 
-def main():
+# --- Запуск ---
+async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # --- /start ---
     app.add_handler(CommandHandler("start", start))
-
-    # --- личные сообщения ---
     app.add_handler(
-        MessageHandler(
-            filters.TEXT & filters.ChatType.PRIVATE & ~filters.COMMAND,
-            handle_private,
-        )
+        MessageHandler(filters.TEXT & filters.ChatType.PRIVATE & ~filters.COMMAND, handle_private)
+    )
+    app.add_handler(
+        MessageHandler(filters.TEXT & filters.ChatType.GROUPS & ~filters.COMMAND, handle_group)
     )
 
-    # --- групповые чаты ---
-    app.add_handler(
-        MessageHandler(
-            filters.TEXT & filters.ChatType.GROUPS & ~filters.COMMAND,
-            handle_group,
-        )
-    )
+    print("✅ Бот запущен и работает...")
+    await app.run_polling()
 
-    print("Бот запущен...")
-    app.run_polling()
+
+if __name__ == "__main__":
+    asyncio.run(main())
 
 
 if __name__ == "__main__":
