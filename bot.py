@@ -11,7 +11,7 @@ from telegram.ext import (
 from flask import Flask, request
 
 TOKEN = "8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw"
-WEBHOOK_URL = "https://delicious-jaquelyn-pincetgorehome-cd382d55.koyeb.app"
+WEBHOOK_URL = "https://delicious-jaquelyn-pincetgorehome-cd382d55.koyeb.app/webhook"
 
 # --- Telegram обработчики ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
