@@ -3,31 +3,24 @@ import re
 import asyncio
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
-)
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# ===== Настройки =====
 TOKEN = "8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw"
 PORT = int(os.environ.get("PORT", 8000))
 BASE_URL = "https://delicious-jaquelyn-pincetgorehome-cd382d55.koyeb.app"
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}"
 
-# ===== Telegram приложение =====
+# --- Telegram приложение ---
 telegram_app = ApplicationBuilder().token(TOKEN).build()
 
-# --- /start в личке ---
+# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type == "private":
         await update.message.reply_text('Пожалуйста, введите слово "да", чтобы начать.')
         context.user_data["waiting_for_da"] = True
 
-# --- Личные сообщения ---
+# Личные сообщения
 async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower().strip()
     if context.user_data.get("waiting_for_da") and re.fullmatch(r"да+", text, re.IGNORECASE):
@@ -38,7 +31,7 @@ async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif re.fullmatch(r"да+", text, re.IGNORECASE):
         await update.message.reply_text("пизда")
 
-# --- Групповые сообщения ---
+# Групповые сообщения
 async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower().strip()
     if re.search(r"\b(да+|da+)\b\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text, re.IGNORECASE):
@@ -51,7 +44,7 @@ telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
 
-# ===== Flask сервер =====
+# --- Flask сервер ---
 app = Flask(__name__)
 
 # Health check для UptimeRobot
@@ -62,15 +55,20 @@ def health():
 # Webhook для Telegram
 @app.route(WEBHOOK_PATH, methods=["POST"])
 def webhook():
-    data = request.get_json(force=True)
-    update = Update.de_json(data, telegram_app.bot)
-    asyncio.run(telegram_app.process_update(update))
-    return "OK", 200
+    try:
+        data = request.get_json(force=True)
+        update = Update.de_json(data, telegram_app.bot)
+        # создаём задачу в текущем loop
+        asyncio.get_event_loop().create_task(telegram_app.process_update(update))
+        return "OK", 200
+    except Exception as e:
+        print("Webhook error:", e)
+        return "Error", 500
 
-# ===== Запуск =====
+# --- Запуск ---
 if __name__ == "__main__":
-    import asyncio
     from waitress import serve
+    import asyncio
 
     async def main():
         # Устанавливаем webhook
