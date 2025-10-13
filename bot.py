@@ -1,9 +1,9 @@
 import re
 import os
-from fastapi import FastAPI, Request
-from telegram import Update, Bot
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 import asyncio
+from fastapi import FastAPI, Request
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 import uvicorn
 
 # =======================
@@ -14,13 +14,13 @@ WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}"
 # =======================
 
-# --- Инициализация FastAPI ---
+# --- FastAPI приложение ---
 app = FastAPI()
 
 # --- Telegram приложение ---
 telegram_app = ApplicationBuilder().token(TOKEN).build()
 
-# --- Handlers ---
+# --- Обработчики ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type == "private":
         await update.message.reply_text(
@@ -45,7 +45,7 @@ async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif re.search(r"(ye+s+|йе+с+|е+с+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text, re.IGNORECASE):
         await update.message.reply_text("Хуес! Пизда!")
 
-# --- Добавляем хэндлеры в Telegram ---
+# --- Добавляем обработчики ---
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
@@ -67,4 +67,5 @@ async def webhook(request: Request):
 if __name__ == "__main__":
     asyncio.run(telegram_app.bot.set_webhook(WEBHOOK_URL))
     print(f"Webhook установлен: {WEBHOOK_URL}")
+    # uvicorn без reload и workers → нет предупреждений
     uvicorn.run(app, host="0.0.0.0", port=PORT)
