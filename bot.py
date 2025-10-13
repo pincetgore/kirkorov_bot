@@ -65,6 +65,7 @@ if __name__ == "__main__":
         # Устанавливаем webhook при запуске
         await telegram_app.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
         print("✅ Webhook установлен!")
-        app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+        from waitress import serve
+        serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
 
     asyncio.run(main())
