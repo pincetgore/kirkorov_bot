@@ -3,7 +3,13 @@ import re
 import asyncio
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
 
 TOKEN = "8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw"
 PORT = int(os.environ.get("PORT", 8000))
@@ -11,7 +17,7 @@ BASE_URL = "https://delicious-jaquelyn-pincetgorehome-cd382d55.koyeb.app"
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}"
 
-# --- Telegram приложение ---
+# Telegram приложение
 telegram_app = ApplicationBuilder().token(TOKEN).build()
 
 # /start
@@ -44,7 +50,7 @@ telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
 
-# --- Flask сервер ---
+# Flask сервер
 app = Flask(__name__)
 
 # Health check для UptimeRobot
@@ -57,6 +63,8 @@ def health():
 def webhook():
     try:
         data = request.get_json(force=True)
+        if not data:
+            return "No JSON", 400
         update = Update.de_json(data, telegram_app.bot)
         # создаём задачу в текущем loop
         asyncio.get_event_loop().create_task(telegram_app.process_update(update))
@@ -65,10 +73,9 @@ def webhook():
         print("Webhook error:", e)
         return "Error", 500
 
-# --- Запуск ---
+# Запуск
 if __name__ == "__main__":
     from waitress import serve
-    import asyncio
 
     async def main():
         # Устанавливаем webhook
