@@ -1,10 +1,10 @@
 import re
 import os
-from telegram import Update
+from fastapi import FastAPI, Request
+from telegram import Update, Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-from http.server import BaseHTTPRequestHandler
-from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 import asyncio
+import uvicorn
 
 # =======================
 TOKEN = "8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw"
@@ -14,10 +14,18 @@ WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}"
 # =======================
 
-# --- Telegram обработчики ---
+# --- Инициализация FastAPI ---
+app = FastAPI()
+
+# --- Telegram приложение ---
+telegram_app = ApplicationBuilder().token(TOKEN).build()
+
+# --- Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type == "private":
-        await update.message.reply_text('Здравствуйте! Пожалуйста, введите слово "да", чтобы начать.')
+        await update.message.reply_text(
+            'Здравствуйте! Пожалуйста, введите слово "да", чтобы начать.'
+        )
         context.user_data["waiting_for_da"] = True
 
 async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -37,25 +45,26 @@ async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif re.search(r"(ye+s+|йе+с+|е+с+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text, re.IGNORECASE):
         await update.message.reply_text("Хуес! Пизда!")
 
-# --- Инициализация Telegram приложения ---
-telegram_app = ApplicationBuilder().token(TOKEN).build()
+# --- Добавляем хэндлеры в Telegram ---
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
 
-# --- Healthcheck endpoint через PTB webhook ---
-async def healthcheck(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.text.lower().strip() == "health":
-        await update.message.reply_text("OK")
+# --- Healthcheck ---
+@app.get("/")
+async def healthcheck():
+    return {"status": "ok"}
 
-telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, healthcheck))
+# --- Webhook endpoint ---
+@app.post(WEBHOOK_PATH)
+async def webhook(request: Request):
+    json_data = await request.json()
+    update = Update.de_json(json_data, telegram_app.bot)
+    await telegram_app.process_update(update)
+    return {"ok": True}
 
-# --- Запуск ---
+# --- Основной запуск ---
 if __name__ == "__main__":
-    asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())  # для Tornado в PTB
-    telegram_app.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        url_path=WEBHOOK_PATH.strip("/"),
-        webhook_url=WEBHOOK_URL
-    )
+    asyncio.run(telegram_app.bot.set_webhook(WEBHOOK_URL))
+    print(f"Webhook установлен: {WEBHOOK_URL}")
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
