@@ -1,5 +1,7 @@
 import re
 import os
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
@@ -36,17 +38,32 @@ async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif re.search(r"(ye+s+|йе+с+|е+с+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text, re.IGNORECASE):
         await update.message.reply_text("Хуес! Пизда!")
 
-# --- Создаем Telegram приложение ---
+# --- Healthcheck сервер для UptimeRobot ---
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+def run_health_server():
+    server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
+    server.serve_forever()
+
+# --- Инициализация Telegram приложения ---
 telegram_app = ApplicationBuilder().token(TOKEN).build()
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
 
-# --- Запуск через webhook ---
+# --- Запуск ---
 if __name__ == "__main__":
+    # Запускаем healthcheck сервер в отдельном потоке
+    threading.Thread(target=run_health_server, daemon=True).start()
+    
+    # Запуск webhook
     telegram_app.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        url_path="webhook",  # путь, на который будет приходить POST
+        url_path="webhook",
         webhook_url=WEBHOOK_URL
     )
