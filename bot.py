@@ -10,17 +10,19 @@ from telegram.ext import (
     filters,
 )
 
+# --- Токен бота ---
 TOKEN = "8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw"
 
-
-# --- Реакция на /start в личных сообщениях ---
+# --- Команда /start ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type == "private":
-        await update.message.reply_text('Пожалуйста, введите слово "да", чтобы начать')
+        await update.message.reply_text(
+            'Пожалуйста, введите слово "да", чтобы начать.'
+        )
         context.user_data["waiting_for_da"] = True
 
 
-# --- Реакция на личные сообщения ---
+# --- Обработка личных сообщений ---
 async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower().strip()
 
@@ -33,7 +35,7 @@ async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("пизда")
 
 
-# --- Реакция на групповые сообщения ---
+# --- Обработка сообщений в группах ---
 async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower().strip()
 
@@ -43,32 +45,38 @@ async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Хуес")
 
 
-# --- HTTP сервер для health-check и UptimeRobot ---
+# --- HTTP сервер для health-check (виден UptimeRobot и Koyeb) ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # Отвечаем "OK" на любые запросы (/, /health, /uptime)
+        response = b"OK"
         self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(response)))
         self.end_headers()
-        self.wfile.write(b"OK")
+        self.wfile.write(response)
+
+    def log_message(self, format, *args):
+        # Отключаем стандартные логи запросов (чтобы не засоряли консоль)
+        return
+
 
 def run_health_server():
-    # Порт 8000 — это то, что проверяет Koyeb
+    # Koyeb слушает порт 8000
     server = HTTPServer(("0.0.0.0", 8000), HealthCheckHandler)
-    print("HTTP сервер запущен на порту 8000 (для Koyeb и UptimeRobot)")
     server.serve_forever()
 
 
-# --- Запуск ---
+# --- Запуск бота ---
 if __name__ == "__main__":
-    # Запускаем HTTP сервер в отдельном потоке
+    # Запускаем health-check сервер в отдельном потоке
     threading.Thread(target=run_health_server, daemon=True).start()
 
-    # Запускаем Telegram-бота
+    # Настраиваем и запускаем Telegram бота
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
 
-    print("Бот запущен. Health-check сервер активен.")
+    print("✅ Бот запущен и health-check сервер активен на порту 8000")
     app.run_polling()
