@@ -1,9 +1,10 @@
 import re
 import os
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from http.server import BaseHTTPRequestHandler
+from tornado.platform.asyncio import AnyThreadEventLoopPolicy
+import asyncio
 
 # =======================
 TOKEN = "8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw"
@@ -16,9 +17,7 @@ WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}"
 # --- Telegram обработчики ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type == "private":
-        await update.message.reply_text(
-            'Здравствуйте! Пожалуйста, введите слово "да", чтобы начать.'
-        )
+        await update.message.reply_text('Здравствуйте! Пожалуйста, введите слово "да", чтобы начать.')
         context.user_data["waiting_for_da"] = True
 
 async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -38,32 +37,25 @@ async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif re.search(r"(ye+s+|йе+с+|е+с+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text, re.IGNORECASE):
         await update.message.reply_text("Хуес! Пизда!")
 
-# --- Healthcheck сервер для UptimeRobot ---
-class HealthHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"OK")
-
-def run_health_server():
-    server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
-    server.serve_forever()
-
 # --- Инициализация Telegram приложения ---
 telegram_app = ApplicationBuilder().token(TOKEN).build()
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
 telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
 
+# --- Healthcheck endpoint через PTB webhook ---
+async def healthcheck(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.text.lower().strip() == "health":
+        await update.message.reply_text("OK")
+
+telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, healthcheck))
+
 # --- Запуск ---
 if __name__ == "__main__":
-    # Запускаем healthcheck сервер в отдельном потоке
-    threading.Thread(target=run_health_server, daemon=True).start()
-    
-    # Запуск webhook
+    asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())  # для Tornado в PTB
     telegram_app.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        url_path="webhook",
+        url_path=WEBHOOK_PATH.strip("/"),
         webhook_url=WEBHOOK_URL
     )
