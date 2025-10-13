@@ -16,7 +16,7 @@ TOKEN = "8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw"
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type == "private":
         await update.message.reply_text(
-            'Здравствуйте! Пожалуйста, введите слово "да", чтобы начать.'
+            'Пожалуйста, введите слово "да", чтобы начать'
         )
         context.user_data["waiting_for_da"] = True
 
@@ -36,10 +36,10 @@ async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower().strip()
 
-    if re.search(r"(да+|da+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text, re.IGNORECASE):
+    if re.search(r"\b(да+|da+)\b\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text, re.IGNORECASE):
         await update.message.reply_text("пизда")
     elif re.search(r"(ye+s+|йе+с+|е+с+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text, re.IGNORECASE):
-        await update.message.reply_text("хуес! Пизда!")
+        await update.message.reply_text("Хуес")
 
 # --- Фейковый HTTP сервер для health check ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
