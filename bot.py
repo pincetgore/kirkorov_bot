@@ -12,13 +12,13 @@ from telegram.ext import (
 
 TOKEN = "8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw"
 
+
 # --- Реакция на /start в личных сообщениях ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type == "private":
-        await update.message.reply_text(
-            'Пожалуйста, введите слово "да", чтобы начать'
-        )
+        await update.message.reply_text('Пожалуйста, введите слово "да", чтобы начать')
         context.user_data["waiting_for_da"] = True
+
 
 # --- Реакция на личные сообщения ---
 async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -32,6 +32,7 @@ async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif re.fullmatch(r"да+", text, re.IGNORECASE):
         await update.message.reply_text("пизда")
 
+
 # --- Реакция на групповые сообщения ---
 async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower().strip()
@@ -41,28 +42,33 @@ async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif re.search(r"(ye+s+|йе+с+|е+с+)\s*[!?,.…\s\U0001F300-\U0001FAFF]*$", text, re.IGNORECASE):
         await update.message.reply_text("Хуес")
 
-# --- Фейковый HTTP сервер для health check ---
+
+# --- HTTP сервер для health-check и UptimeRobot ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        # Отвечаем "OK" на любые запросы (/, /health, /uptime)
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"OK")
 
 def run_health_server():
+    # Порт 8000 — это то, что проверяет Koyeb
     server = HTTPServer(("0.0.0.0", 8000), HealthCheckHandler)
+    print("HTTP сервер запущен на порту 8000 (для Koyeb и UptimeRobot)")
     server.serve_forever()
+
 
 # --- Запуск ---
 if __name__ == "__main__":
-    # Запуск фейкового health check сервера
+    # Запускаем HTTP сервер в отдельном потоке
     threading.Thread(target=run_health_server, daemon=True).start()
 
-    # Инициализация Telegram бота
+    # Запускаем Telegram-бота
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
 
-    print("Бот запущен и health check сервер активен")
+    print("Бот запущен. Health-check сервер активен.")
     app.run_polling()
