@@ -39,7 +39,7 @@ async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Хуес")
 
 
-# --- Flask сервер для webhook и healthcheck ---
+# --- Flask сервер ---
 app = Flask(__name__)
 telegram_app = ApplicationBuilder().token(TOKEN).build()
 
@@ -51,7 +51,7 @@ telegram_app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, 
 def health():
     return "OK", 200
 
-@app.route(f"/{TOKEN}", methods=["POST"])
+@app.route("/webhook", methods=["POST"])
 async def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
     await telegram_app.process_update(update)
@@ -60,12 +60,14 @@ async def webhook():
 
 if __name__ == "__main__":
     import asyncio
+    from waitress import serve
 
     async def main():
-        # Устанавливаем webhook при запуске
-        await telegram_app.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+        # Устанавливаем webhook
+        await telegram_app.bot.set_webhook(WEBHOOK_URL)
         print("✅ Webhook установлен!")
-        from waitress import serve
+
+        # Запускаем сервер
         serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
 
     asyncio.run(main())
