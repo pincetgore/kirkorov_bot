@@ -1,45 +1,52 @@
-import re
+import asyncio
+import logging
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+import sys
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message
 
-TOKEN = "ВАШ_TOKEN"
-PORT = int(os.environ.get("PORT", 8000))
-BASE_URL = "https://delicious-jaquelyn-pincetgorehome-cd382d55.koyeb.app"
-WEBHOOK_PATH = "/webhook"
-WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}"
+# Получаем токен из переменных окружения (безопасность)
+TOKEN = os.getenv("8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw")
 
-# --- Handlers ---
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type == "private":
-        await update.message.reply_text('Введите слово "да", чтобы начать.')
-        context.user_data["waiting_for_da"] = True
+# Включаем логирование, чтобы видеть ошибки в консоли
+logging.basicConfig(level=logging.INFO)
 
-async def handle_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower().strip()
-    if context.user_data.get("waiting_for_da") and re.fullmatch(r"да+", text):
-        await update.message.reply_text("пизда")
-        context.user_data["waiting_for_da"] = False
-    elif context.user_data.get("waiting_for_da"):
-        await update.message.reply_text("Попробуйте еще раз")
+# Инициализируем бота и диспетчер
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
 
-async def handle_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower().strip()
-    if re.search(r"\bда+\b", text):
-        await update.message.reply_text("пизда")
+# Функция очистки текста от знаков препинания в конце
+def clean_text(text: str):
+    # Убираем пробелы и знаки препинания справа, приводим к нижнему регистру
+    return text.strip().rstrip('?!.,').lower()
 
-# --- Создаем приложение ---
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_private))
-app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_group))
+# Хендлер: срабатывает на ЛЮБОЕ текстовое сообщение
+@dp.message(F.text)
+async def check_message(message: Message):
+    if not message.text:
+        return
+    
+    # Проверяем, заканчивается ли очищенный текст на "да"
+    # Это сработает на "Да", "ДА", "ну да", "да?" и т.д.
+    if clean_text(message.text).endswith('да'):
+        # Отвечаем на сообщение (reply)
+        try:
+            await message.reply("пизда")
+        except Exception as e:
+            # Обработка случая, если у бота нет прав писать в чат
+            print(f"Ошибка отправки: {e}")
 
-# --- Запуск webhook ---
+# Запуск процесса (polling)
+async def main():
+    print("Бот запущен!")
+    await dp.start_polling(bot)
+
 if __name__ == "__main__":
-    print(f"Устанавливаем webhook: {WEBHOOK_URL}")
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        url_path=WEBHOOK_PATH.strip("/"),
-        webhook_url=WEBHOOK_URL
-    )
+    # Проверка наличия токена
+    if not TOKEN:
+        sys.exit("Ошибка: Переменная окружения BOT_TOKEN не найдена.")
+    
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Бот остановлен")
