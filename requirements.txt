@@ -1,4 +1,3 @@
 aiogram
 python-dotenv
 aiohttp
-python-3.10.13
