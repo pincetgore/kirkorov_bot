@@ -4,49 +4,56 @@ import os
 import sys
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
+from aiohttp import web
 
-# Получаем токен из переменных окружения (безопасность)
+# Получаем токен
 TOKEN = os.getenv("BOT_TOKEN")
+# Получаем порт от Koyeb, или используем 8000 по умолчанию
+PORT = int(os.getenv("PORT", 8000))
 
-# Включаем логирование, чтобы видеть ошибки в консоли
 logging.basicConfig(level=logging.INFO)
 
-# Инициализируем бота и диспетчер
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Функция очистки текста от знаков препинания в конце
 def clean_text(text: str):
-    # Убираем пробелы и знаки препинания справа, приводим к нижнему регистру
     return text.strip().rstrip('?!.,').lower()
 
-# Хендлер: срабатывает на ЛЮБОЕ текстовое сообщение
 @dp.message(F.text)
 async def check_message(message: Message):
     if not message.text:
         return
-    
-    # Проверяем, заканчивается ли очищенный текст на "да"
-    # Это сработает на "Да", "ДА", "ну да", "да?" и т.д.
     if clean_text(message.text).endswith('да'):
-        # Отвечаем на сообщение (reply)
         try:
             await message.reply("пизда")
         except Exception as e:
-            # Обработка случая, если у бота нет прав писать в чат
-            print(f"Ошибка отправки: {e}")
+            print(f"Ошибка: {e}")
 
-# Запуск процесса (polling)
+# --- ФУНКЦИИ ДЛЯ ВЕБ-СЕРВЕРА ---
+async def handle(request):
+    return web.Response(text="Бот работает!")
+
+async def start_web_server():
+    app = web.Application()
+    app.add_routes([web.get('/', handle)])
+    runner = web.AppRunner(app)
+    await runner.setup()
+    # Важно: слушаем 0.0.0.0 и нужный порт
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
+    await site.start()
+
+# --- ГЛАВНАЯ ФУНКЦИЯ ---
 async def main():
+    # Запускаем веб-сервер и бота одновременно
+    await start_web_server()
+    print(f"Веб-сервер запущен на порту {PORT}")
     print("Бот запущен!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    # Проверка наличия токена
     if not TOKEN:
-        sys.exit("Ошибка: Переменная окружения BOT_TOKEN не найдена.")
-    
+        sys.exit("Error: BOT_TOKEN not found.")
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("Бот остановлен")
+        print("Bot stopped")
