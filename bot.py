@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
 
 # Получаем токен из переменных окружения (безопасность)
-TOKEN = os.getenv("8366843143:AAHYOuS-QdfpVX2KA6q9T0GW_-lx1fvioQw")
+TOKEN = os.getenv("BOT_TOKEN")
 
 # Включаем логирование, чтобы видеть ошибки в консоли
 logging.basicConfig(level=logging.INFO)
